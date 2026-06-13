@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SaltaInforma - Noticias de Salta</title>
+    <!-- Tailwind CSS para el diseño -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para los íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Pequeñas animaciones y ajustes */
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans min-h-screen flex flex-col text-gray-800">
+
+    <!-- Navbar -->
+    <nav class="bg-blue-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center cursor-pointer" onclick="window.setView('home')">
+                    <i class="fa-solid fa-newspaper text-2xl mr-2 text-blue-300"></i>
+                    <span class="font-bold text-xl tracking-tight">SaltaInforma</span>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Filtros (Se llenan con JS) -->
+                    <div id="nav-filters" class="hidden md:flex space-x-2 mr-4"></div>
+                    <!-- Botón Login/Logout (Se llena con JS) -->
+                    <div id="nav-auth"></div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex-grow" id="app-content">
+        <!-- El contenido se inyectará aquí mediante JavaScript -->
+        <div class="text-center py-20">
+            <i class="fa-solid fa-spinner fa-spin text-4xl text-blue-600"></i>
+            <p class="mt-4 text-gray-500 font-medium">Cargando portal...</p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-400 py-8 text-center mt-auto">
+        <p class="font-medium text-gray-300 flex items-center justify-center">
+            <i class="fa-solid fa-newspaper mr-2"></i> SaltaInforma
+        </p>
+        <p class="text-sm mt-2">Plataforma de noticias locales y nacionales.</p>
+    </footer>
+
+    <!-- Lógica de la Aplicación -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // 🚨 CONFIGURACIÓN PARA GITHUB PAGES 🚨
+        // ==========================================
+        // Cuando subas esto a GitHub Pages, reemplaza el 'null' de abajo 
+        // por la configuración de tu proyecto de Firebase.
+        let miFirebaseConfig = null; 
+        
+        /* EJEMPLO DE CÓMO SE VERÁ TU CONFIGURACIÓN (Borra los comentarios y pega la tuya):
+        miFirebaseConfig = {
+            apiKey: "AIzaSyTuClaveAqui...",
+            authDomain: "saltainforma.firebaseapp.com",
+            projectId: "saltainforma",
+            storageBucket: "saltainforma.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456:web:abcd"
+        };
+        */
+        // ==========================================
+
+        // Conexión automática para el entorno de prueba (no tocar)
+        let configFinal;
+        try {
+            configFinal = miFirebaseConfig || (typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null);
+        } catch(e) { configFinal = null; }
+
+        // Variables de estado
+        window.state = {
+            news: [],
+            isAdmin: false,
+            currentView: 'home', // 'home', 'article', 'editor'
+            selectedArticle: null,
+            activeCategory: 'Todas',
+            formData: { id: null, title: '', content: '', category: 'Local', imageUrl: '' },
+            db: null,
+            appId: typeof __app_id !== 'undefined' ? __app_id : 'salta-news-app'
+        };
+
+        // --- Utilidades ---
+        window.escapeHtml = (unsafe) => {
+            return (unsafe || '').toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        };
+
+        // --- Renderizado Principal ---
+        window.renderApp = () => {
+            const content = document.getElementById('app-content');
+            
+            updateNavbar();
+
+            if (state.currentView === 'home') {
+                content.innerHTML = renderHome();
+            } else if (state.currentView === 'article') {
+                content.innerHTML = renderArticle();
+            } else if (state.currentView === 'editor') {
+                content.innerHTML = renderEditor();
+            }
+        };
+
+        const updateNavbar = () => {
+            // Filtros
+            const filtersDiv = document.getElementById('nav-filters');
+            if (state.currentView === 'home') {
+                filtersDiv.innerHTML = ['Todas', 'Local', 'Nacional'].map(cat => `
+                    <button onclick="window.setCategory('${cat}')" 
+                            class="px-3 py-1 rounded-full text-sm font-medium transition-colors ${state.activeCategory === cat ? 'bg-blue-600 text-white' : 'text-blue-200 hover:bg-blue-800'}">
+                        ${cat}
+                    </button>
+                `).join('');
+                filtersDiv.classList.remove('hidden');
+                filtersDiv.classList.add('hidden', 'md:flex'); // Solo visible en md+
+            } else {
+                filtersDiv.innerHTML = '';
+                filtersDiv.classList.add('hidden');
+            }
+
+            // Auth
+            const authDiv = document.getElementById('nav-auth');
+            if (state.isAdmin) {
+                authDiv.innerHTML = `
+                    <button onclick="window.logout()" class="flex items-center text-sm font-medium text-red-300 hover:text-red-100">
+                        <i class="fa-solid fa-right-from-bracket mr-1"></i> Salir
+                    </button>
+                `;
+            } else {
+                authDiv.innerHTML = `
+                    <button onclick="window.showLogin()" class="flex items-center text-sm font-medium text-blue-200 hover:text-white">
+                        <i class="fa-solid fa-lock mr-1"></i> Acceso
+                    </button>
+                `;
+            }
+        };
+
+        // --- Vistas ---
+        const renderHome = () => {
+            const filteredNews = state.activeCategory === 'Todas' 
+                ? state.news 
+                : state.news.filter(n => n.category === state.activeCategory);
+
+            let html = `
+                <!-- Filtros en móvil -->
+                <div class="md:hidden flex space-x-2 mb-6 overflow-x-auto pb-2">
+                   ${['Todas', 'Local', 'Nacional'].map(cat => `
+                        <button onclick="window.setCategory('${cat}')" 
+                                class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${state.activeCategory === cat ? 'bg-blue-900 text-white' : 'bg-white text-gray-600 border border-gray-200'}">
+                            ${cat}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+
+            // Panel Admin
+            if (state.isAdmin) {
+                html += `
+                <div class="mb-8 p-4 bg-white rounded-xl shadow-sm border border-blue-100 flex items-center justify-between fade-in">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800">Panel de Control</h2>
+                        <p class="text-sm text-gray-500">Bienvenido, estás en modo edición.</p>
+                    </div>
+                    <button onclick="window.openEditor()" class="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm">
+                        <i class="fa-solid fa-plus mr-2"></i> Publicar Noticia
+                    </button>
+                </div>`;
+            }
+
+            // Grilla de noticias
+            if (filteredNews.length === 0) {
+                html += `
+                <div class="text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm fade-in">
+                    <i class="fa-solid fa-newspaper mx-auto text-6xl text-gray-300 mb-4 block"></i>
+                    <h3 class="text-xl font-bold text-gray-600">No hay noticias todavía</h3>
+                    <p class="text-gray-500 mt-2">${state.isAdmin ? 'Haz clic en "Publicar Noticia" para empezar.' : 'Vuelve más tarde para mantenerte informado.'}</p>
+                </div>`;
+            } else {
+                html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 fade-in">`;
+                filteredNews.forEach(article => {
+                    const fallbackImg = "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
+                    const date = new Date(article.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+                    const icon = article.category === 'Local' ? 'fa-location-dot' : 'fa-globe';
+                    const catColor = article.category === 'Local' ? 'bg-green-600' : 'bg-blue-600';
+
+                    html += `
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 flex flex-col">
+                        <div class="h-48 w-full bg-gray-200 cursor-pointer relative" onclick="window.viewArticle('${article.id}')">
+                            <img src="${escapeHtml(article.imageUrl)}" alt="Imagen" class="w-full h-full object-cover" onerror="this.src='${fallbackImg}'" />
+                            <div class="absolute top-3 left-3 flex gap-2">
+                                <span class="px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm flex items-center ${catColor}">
+                                    <i class="fa-solid ${icon} mr-1"></i> ${escapeHtml(article.category)}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="p-5 flex-grow flex flex-col">
+                            <div class="text-xs text-gray-400 mb-2 font-medium">${date}</div>
+                            <h3 class="text-xl font-bold text-gray-900 mb-3 leading-tight cursor-pointer hover:text-blue-600 transition-colors" onclick="window.viewArticle('${article.id}')">
+                                ${escapeHtml(article.title)}
+                            </h3>
+                            <p class="text-gray-600 text-sm line-clamp-3 mb-4 flex-grow">
+                                ${escapeHtml(article.content)}
+                            </p>
+                            ${state.isAdmin ? `
+                            <div class="pt-4 mt-auto border-t border-gray-100 flex justify-end space-x-2">
+                                <button onclick="window.openEditor('${article.id}')" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button onclick="window.deleteArticle('${article.id}')" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+            return html;
+        };
+
+        const renderArticle = () => {
+            const article = state.selectedArticle;
+            if (!article) return '';
+            const fallbackImg = "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
+            const date = new Date(article.createdAt).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            const icon = article.category === 'Local' ? 'fa-location-dot' : 'fa-globe';
+            const catColor = article.category === 'Local' ? 'bg-green-600' : 'bg-blue-600';
+
+            return `
+            <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden fade-in">
+                <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+                    <button onclick="window.setView('home')" class="flex items-center text-blue-600 font-medium hover:text-blue-800">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Volver a portada
+                    </button>
+                    ${state.isAdmin ? `
+                    <div class="flex space-x-2">
+                        <button onclick="window.openEditor('${article.id}')" class="flex items-center text-sm px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors">
+                            <i class="fa-solid fa-pen mr-1"></i> Editar
+                        </button>
+                        <button onclick="window.deleteArticle('${article.id}')" class="flex items-center text-sm px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium transition-colors">
+                            <i class="fa-solid fa-trash mr-1"></i> Borrar
+                        </button>
+                    </div>` : ''}
+                </div>
+                
+                <img src="${escapeHtml(article.imageUrl)}" alt="Imagen de la noticia" class="w-full h-[400px] object-cover" onerror="this.src='${fallbackImg}'" />
+                
+                <div class="p-8 md:p-12">
+                    <div class="flex items-center space-x-4 mb-6">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm flex items-center w-fit ${catColor}">
+                            <i class="fa-solid ${icon} mr-1"></i> ${escapeHtml(article.category)}
+                        </span>
+                        <span class="text-sm text-gray-500 font-medium">${date}</span>
+                    </div>
+                    
+                    <h1 class="text-3xl md:text-5xl font-black text-gray-900 mb-8 leading-tight">
+                        ${escapeHtml(article.title)}
+                    </h1>
+                    
+                    <div class="prose prose-lg max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed text-lg">
+                        ${escapeHtml(article.content)}
+                    </div>
+                    
+                    <div class="mt-12 pt-6 border-t border-gray-100 flex items-center text-gray-500 text-sm">
+                        <p>Publicado por Redacción SaltaInforma</p>
+                    </div>
+                </div>
+            </div>`;
+        };
+
+        const renderEditor = () => {
+            const f = state.formData;
+            const isEdit = !!f.id;
+            
+            return `
+            <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-8 fade-in">
+                <div class="flex items-center justify-between mb-8">
+                    <h2 class="text-2xl font-bold text-gray-900 flex items-center">
+                        <i class="fa-solid ${isEdit ? 'fa-pen' : 'fa-plus'} mr-2 text-blue-600"></i>
+                        ${isEdit ? 'Editar Noticia' : 'Nueva Noticia'}
+                    </h2>
+                    <button onclick="window.setView('home')" class="text-gray-400 hover:text-gray-600 font-medium">Cancelar</button>
+                </div>
+                
+                <form id="editor-form" class="space-y-6" onsubmit="window.submitArticle(event)">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Título de la noticia</label>
+                        <input type="text" id="form-title" required value="${escapeHtml(f.title)}"
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-medium text-lg"
+                            placeholder="Ej: Nuevo festival folclórico..." />
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Categoría</label>
+                            <select id="form-category" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+                                <option value="Local" ${f.category === 'Local' ? 'selected' : ''}>Local (Salta)</option>
+                                <option value="Nacional" ${f.category === 'Nacional' ? 'selected' : ''}>Nacional (Argentina)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                                <i class="fa-solid fa-image mr-1"></i> URL de la Imagen
+                            </label>
+                            <input type="url" id="form-imageUrl" value="${escapeHtml(f.imageUrl)}" onchange="window.updateImagePreview(this.value)"
+                                class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="https://ejemplo.com/imagen.jpg" />
+                            <p class="text-xs text-gray-500 mt-1">Copia y pega la dirección web de una foto.</p>
+                        </div>
+                    </div>
+
+                    <div id="image-preview-container" class="${f.imageUrl ? 'block' : 'hidden'} mt-2 rounded-lg overflow-hidden border border-gray-200 h-40 w-full relative bg-gray-50">
+                        <img id="image-preview" src="${escapeHtml(f.imageUrl)}" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1585829365295-ab7cd400c167?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'"/>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Contenido de la noticia</label>
+                        <textarea id="form-content" required rows="12"
+                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                            placeholder="Escribe el desarrollo de la noticia aquí...">${escapeHtml(f.content)}</textarea>
+                    </div>
+
+                    <div class="pt-4 border-t border-gray-100 flex justify-end">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-md transition-all">
+                            ${isEdit ? 'Guardar Cambios' : 'Publicar Noticia'}
+                        </button>
+                    </div>
+                </form>
+            </div>`;
+        };
+
+        // --- Acciones de Usuario ---
+        window.setView = (view) => { state.currentView = view; renderApp(); };
+        window.setCategory = (cat) => { state.activeCategory = cat; renderApp(); };
+        window.viewArticle = (id) => {
+            state.selectedArticle = state.news.find(n => n.id === id);
+            window.setView('article');
+        };
+
+        window.openEditor = (id = null) => {
+            if (id) {
+                const article = state.news.find(n => n.id === id);
+                state.formData = { ...article };
+            } else {
+                state.formData = { id: null, title: '', content: '', category: 'Local', imageUrl: '' };
+            }
+            window.setView('editor');
+        };
+
+        window.updateImagePreview = (url) => {
+            const container = document.getElementById('image-preview-container');
+            const img = document.getElementById('image-preview');
+            if (url) {
+                img.src = url;
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        };
+
+        // --- Auth Mock ---
+        window.showLogin = () => {
+            const pass = prompt("Acceso Editorial (Contraseña: salta2026)");
+            if (pass === 'salta2026') {
+                state.isAdmin = true;
+                alert("¡Bienvenido al panel de edición!");
+                renderApp();
+            } else if (pass !== null) {
+                alert("Contraseña incorrecta");
+            }
+        };
+
+        window.logout = () => {
+            state.isAdmin = false;
+            window.setView('home');
+        };
+
+        // --- Operaciones de Base de Datos (Firebase) ---
+        window.submitArticle = async (e) => {
+            e.preventDefault();
+            if (!state.db) return alert("Error: Base de datos no conectada.");
+
+            const title = document.getElementById('form-title').value;
+            const category = document.getElementById('form-category').value;
+            const imageUrl = document.getElementById('form-imageUrl').value;
+            const content = document.getElementById('form-content').value;
+
+            const articleData = {
+                title, category, content,
+                imageUrl: imageUrl || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+                createdAt: state.formData.id ? state.formData.createdAt : Date.now(),
+                author: 'Redacción SaltaInforma'
+            };
+
+            const btn = document.querySelector('button[type="submit"]');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+            btn.disabled = true;
+
+            try {
+                if (state.formData.id) {
+                    const docRef = doc(state.db, 'artifacts', state.appId, 'public', 'data', 'salta_news_articles', state.formData.id);
+                    await updateDoc(docRef, articleData);
+                } else {
+                    const newsRef = collection(state.db, 'artifacts', state.appId, 'public', 'data', 'salta_news_articles');
+                    await addDoc(newsRef, articleData);
+                }
+                window.setView('home');
+            } catch (error) {
+                console.error("Error al guardar:", error);
+                alert("Hubo un error al guardar la noticia.");
+                btn.innerHTML = 'Intentar de nuevo';
+                btn.disabled = false;
+            }
+        };
+
+        window.deleteArticle = async (id) => {
+            if (!state.db) return;
+            if (confirm("¿Estás seguro de que deseas eliminar esta noticia?")) {
+                try {
+                    const docRef = doc(state.db, 'artifacts', state.appId, 'public', 'data', 'salta_news_articles', id);
+                    await deleteDoc(docRef);
+                    if (state.currentView === 'article') window.setView('home');
+                } catch (error) {
+                    console.error("Error al eliminar:", error);
+                }
+            }
+        };
+
+        // --- Inicialización de Firebase ---
+        if (!configFinal) {
+            document.getElementById('app-content').innerHTML = `
+                <div class="text-center py-20 fade-in">
+                    <i class="fa-solid fa-triangle-exclamation text-6xl text-yellow-500 mb-4 block"></i>
+                    <h2 class="text-2xl font-bold text-gray-800">Falta la Base de Datos</h2>
+                    <p class="text-gray-600 mt-4 max-w-md mx-auto">Para que la página funcione en GitHub Pages, necesitas configurar Firebase. Abre el archivo <code>index.html</code> y busca la sección "CONFIGURACIÓN PARA GITHUB PAGES" en la línea 40.</p>
+                </div>
+            `;
+        } else {
+            const app = initializeApp(configFinal);
+            const auth = getAuth(app);
+            state.db = getFirestore(app);
+
+            // Autenticación anónima para poder leer y escribir (Reglas de Firebase permitiéndolo)
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) { console.error("Auth error:", error); }
+            };
+
+            initAuth();
+
+            // Escuchar cambios de sesión e inicializar la carga de datos
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    const newsRef = collection(state.db, 'artifacts', state.appId, 'public', 'data', 'salta_news_articles');
+                    onSnapshot(newsRef, (snapshot) => {
+                        const newsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        newsData.sort((a, b) => b.createdAt - a.createdAt);
+                        state.news = newsData;
+                        renderApp(); // Renderiza la app una vez obtenidos los datos
+                    }, (error) => {
+                        console.error("Error al obtener noticias:", error);
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
