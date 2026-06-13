@@ -10,20 +10,26 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Pequeñas animaciones y ajustes */
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
     </style>
 </head>
 <body class="bg-gray-50 font-sans min-h-screen flex flex-col text-gray-800">
 
     <!-- Navbar -->
-    <nav class="bg-blue-900 text-white shadow-lg sticky top-0 z-50">
+    <nav class="bg-blue-950 text-white shadow-xl sticky top-0 z-50 border-b border-blue-800">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center cursor-pointer" onclick="window.setView('home')">
-                    <i class="fa-solid fa-newspaper text-2xl mr-2 text-blue-300"></i>
-                    <span class="font-bold text-xl tracking-tight">SaltaInforma</span>
+            <div class="flex justify-between h-20">
+                <!-- LOGO MEJORADO -->
+                <div class="flex items-center cursor-pointer group" onclick="window.setView('home')">
+                    <div class="bg-gradient-to-br from-blue-400 to-blue-600 text-white p-2.5 rounded-xl shadow-lg mr-3 transform group-hover:scale-105 group-hover:rotate-3 transition-all duration-300">
+                        <i class="fa-solid fa-mountain-sun text-2xl"></i>
+                    </div>
+                    <div class="flex flex-col justify-center">
+                        <span class="font-black text-2xl tracking-tighter leading-none"><span class="text-blue-400">Salta</span>Informa</span>
+                        <span class="text-[0.65rem] font-bold text-blue-300 tracking-[0.2em] uppercase mt-1 opacity-80">El portal del norte</span>
+                    </div>
                 </div>
                 
                 <div class="flex items-center space-x-4">
@@ -40,17 +46,20 @@
     <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex-grow" id="app-content">
         <!-- El contenido se inyectará aquí mediante JavaScript -->
         <div class="text-center py-20">
-            <i class="fa-solid fa-spinner fa-spin text-4xl text-blue-600"></i>
-            <p class="mt-4 text-gray-500 font-medium">Cargando portal...</p>
+            <i class="fa-solid fa-circle-notch fa-spin text-5xl text-blue-600 mb-4"></i>
+            <p class="mt-4 text-gray-500 font-medium text-lg">Cargando la información al instante...</p>
         </div>
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-900 text-gray-400 py-8 text-center mt-auto">
-        <p class="font-medium text-gray-300 flex items-center justify-center">
-            <i class="fa-solid fa-newspaper mr-2"></i> SaltaInforma
-        </p>
-        <p class="text-sm mt-2">Plataforma de noticias locales y nacionales.</p>
+    <footer class="bg-gray-900 text-gray-400 py-10 text-center mt-auto border-t border-gray-800">
+        <div class="flex flex-col items-center justify-center">
+            <div class="bg-gray-800 p-3 rounded-full mb-4">
+                <i class="fa-solid fa-mountain-sun text-xl text-gray-400"></i>
+            </div>
+            <p class="font-bold text-gray-300 text-lg">SaltaInforma</p>
+            <p class="text-sm mt-2 max-w-md mx-auto">La plataforma líder de noticias locales de la provincia de Salta y lo más destacado del ámbito nacional.</p>
+        </div>
     </footer>
 
     <!-- Lógica de la Aplicación -->
@@ -62,23 +71,9 @@
         // ==========================================
         // 🚨 CONFIGURACIÓN PARA GITHUB PAGES 🚨
         // ==========================================
-        // Cuando subas esto a GitHub Pages, reemplaza el 'null' de abajo 
-        // por la configuración de tu proyecto de Firebase.
         let miFirebaseConfig = null; 
         
-        /* EJEMPLO DE CÓMO SE VERÁ TU CONFIGURACIÓN (Borra los comentarios y pega la tuya):
-        miFirebaseConfig = {
-            apiKey: "AIzaSyTuClaveAqui...",
-            authDomain: "saltainforma.firebaseapp.com",
-            projectId: "saltainforma",
-            storageBucket: "saltainforma.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456:web:abcd"
-        };
-        */
-        // ==========================================
-
-        // Conexión automática para el entorno de prueba (no tocar)
+        // Conexión automática para el entorno de prueba
         let configFinal;
         try {
             configFinal = miFirebaseConfig || (typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null);
@@ -88,13 +83,81 @@
         window.state = {
             news: [],
             isAdmin: false,
-            currentView: 'home', // 'home', 'article', 'editor'
+            currentView: 'home',
             selectedArticle: null,
             activeCategory: 'Todas',
             formData: { id: null, title: '', content: '', category: 'Local', imageUrl: '' },
             db: null,
             appId: typeof __app_id !== 'undefined' ? __app_id : 'salta-news-app'
         };
+
+        // --- Noticias Pre-cargadas ---
+        const initialNews = [
+            {
+                title: "Récord de visitantes en el Tren a las Nubes durante el fin de semana largo",
+                category: "Local",
+                content: "El emblemático atractivo turístico de la provincia registró una ocupación del 100% en todas sus salidas. Turistas nacionales e internacionales disfrutaron del imponente paisaje de la Puna salteña, consolidando a Salta como uno de los destinos más elegidos del país.\n\nAutoridades del Ministerio de Turismo destacaron el impacto económico positivo en los comercios locales y la ocupación hotelera que rozó el 95% en la capital.",
+                imageUrl: "https://images.unsplash.com/photo-1621508654686-809f23efdabc?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                author: "Turismo SaltaInforma",
+                createdAt: Date.now() - 100000
+            },
+            {
+                title: "Alerta meteorológica: Se espera una ola de frío polar en los Valles Calchaquíes",
+                category: "Local",
+                content: "Defensa Civil emitió un comunicado advirtiendo sobre un drástico descenso de la temperatura en la región de los Valles para los próximos días. Se esperan heladas intensas y posibles nevadas en las zonas más altas.\n\nSe recomienda a los pobladores tomar precauciones con el ganado, proteger los cultivos sensibles y evitar transitar por las rutas en horas de la madrugada debido a la posible formación de hielo en la calzada.",
+                imageUrl: "https://images.unsplash.com/photo-1478719059408-592965723cbc?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                author: "Redacción SaltaInforma",
+                createdAt: Date.now() - 200000
+            },
+            {
+                title: "Comienza la Fiesta Nacional de la Pachamama en San Antonio de los Cobres",
+                category: "Local",
+                content: "Con gran expectativa, iniciaron las celebraciones en honor a la Madre Tierra en la Puna. Durante todo el mes, habrá ofrendas, cantos de copleros, ferias artesanales y degustación de comidas regionales.\n\nEl evento central congregará a miles de personas en una muestra de profunda devoción y tradición andina, donde se realiza el tradicional sahumado y se depositan ofrendas en la tierra agradeciendo por los frutos recibidos.",
+                imageUrl: "https://images.unsplash.com/photo-1604928131343-982855f36e76?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                author: "Cultura SaltaInforma",
+                createdAt: Date.now() - 300000
+            },
+            {
+                title: "Inauguran nuevo tramo pavimentado de la Ruta Nacional 51",
+                category: "Local",
+                content: "El Gobernador encabezó el acto de habilitación de 15 kilómetros de asfalto en la estratégica Ruta 51, que conecta a Salta con el paso de Sico y la frontera con Chile.\n\nEsta obra es vital para el desarrollo logístico del sector minero en crecimiento y mejorará significativamente la seguridad vial y los tiempos de viaje para los pobladores de la Puna salteña.",
+                imageUrl: "https://images.unsplash.com/photo-1515022838320-94d12224976a?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                author: "Política y Obras",
+                createdAt: Date.now() - 400000
+            },
+            {
+                title: "Central Norte se prepara para el clásico salteño con equipo confirmado",
+                category: "Local",
+                content: "El 'Cuervo' realizó su última práctica formal de fútbol y el director técnico despejó las dudas en el mediocampo. Con un esquema decididamente ofensivo, buscarán quedarse con los tres puntos en el estadio Martearena.\n\nEl encuentro promete vivirse con gran intensidad, el estadio lucirá repleto tras haberse agotado las entradas populares en apenas unas pocas horas desde su puesta en venta.",
+                imageUrl: "https://images.unsplash.com/photo-1518605368461-1eb246067b84?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                author: "Deportes SaltaInforma",
+                createdAt: Date.now() - 500000
+            },
+            {
+                title: "Productores vitivinícolas de Cafayate proyectan una excelente vendimia",
+                category: "Local",
+                content: "Gracias a las condiciones climáticas sumamente favorables de los últimos meses, el sector bodeguero de los Valles Calchaquíes estima que la cosecha de uva Torrontés y Malbec superará holgadamente los rindes del año anterior.\n\nSe espera elaborar vinos de altísima calidad que continuarán compitiendo y ganando medallas en los mercados internacionales más exigentes.",
+                imageUrl: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                author: "Economía Regional",
+                createdAt: Date.now() - 600000
+            },
+            {
+                title: "El Banco Central anuncia nuevas medidas para fortalecer las reservas",
+                category: "Nacional",
+                content: "En un comunicado oficial emitido esta mañana, la autoridad monetaria detalló una serie de incentivos para la liquidación de exportaciones del agro y ajustes en la tasa de interés de referencia.\n\nEl principal objetivo de estas políticas es estabilizar el mercado cambiario, acumular reservas internacionales y generar un clima de mayor previsibilidad económica para encarar el segundo semestre del año.",
+                imageUrl: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                author: "Economía Nacional",
+                createdAt: Date.now() - 700000
+            },
+            {
+                title: "Feriados 2026: el calendario oficial para planificar lo que resta del año",
+                category: "Nacional",
+                content: "El Ministerio del Interior publicó el cronograma definitivo de feriados inamovibles, trasladables y con fines turísticos para lo que resta del ciclo 2026.\n\nAún quedan en el horizonte tres fines de semana largos, estratégicamente ubicados, ideales para continuar fomentando el turismo interno, reactivar las economías regionales y proporcionar el merecido descanso a los trabajadores argentinos.",
+                imageUrl: "https://images.unsplash.com/photo-1506784951206-3962edfbcf16?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80",
+                author: "Sociedad",
+                createdAt: Date.now() - 800000
+            }
+        ];
 
         // --- Utilidades ---
         window.escapeHtml = (unsafe) => {
@@ -122,7 +185,7 @@
             if (state.currentView === 'home') {
                 filtersDiv.innerHTML = ['Todas', 'Local', 'Nacional'].map(cat => `
                     <button onclick="window.setCategory('${cat}')" 
-                            class="px-3 py-1 rounded-full text-sm font-medium transition-colors ${state.activeCategory === cat ? 'bg-blue-600 text-white' : 'text-blue-200 hover:bg-blue-800'}">
+                            class="px-4 py-1.5 rounded-full text-sm font-bold transition-all ${state.activeCategory === cat ? 'bg-white text-blue-900 shadow-md' : 'text-blue-200 hover:bg-blue-800 hover:text-white'}">
                         ${cat}
                     </button>
                 `).join('');
@@ -137,14 +200,14 @@
             const authDiv = document.getElementById('nav-auth');
             if (state.isAdmin) {
                 authDiv.innerHTML = `
-                    <button onclick="window.logout()" class="flex items-center text-sm font-medium text-red-300 hover:text-red-100">
-                        <i class="fa-solid fa-right-from-bracket mr-1"></i> Salir
+                    <button onclick="window.logout()" class="flex items-center text-sm font-bold bg-red-500/20 px-4 py-2 rounded-lg text-red-200 hover:bg-red-500 hover:text-white transition-colors">
+                        <i class="fa-solid fa-right-from-bracket mr-2"></i> Salir del Panel
                     </button>
                 `;
             } else {
                 authDiv.innerHTML = `
-                    <button onclick="window.showLogin()" class="flex items-center text-sm font-medium text-blue-200 hover:text-white">
-                        <i class="fa-solid fa-lock mr-1"></i> Acceso
+                    <button onclick="window.showLogin()" class="flex items-center text-sm font-bold text-blue-300 hover:text-white transition-colors">
+                        <i class="fa-solid fa-user-shield mr-1"></i> Editor
                     </button>
                 `;
             }
@@ -158,10 +221,10 @@
 
             let html = `
                 <!-- Filtros en móvil -->
-                <div class="md:hidden flex space-x-2 mb-6 overflow-x-auto pb-2">
+                <div class="md:hidden flex space-x-3 mb-6 overflow-x-auto pb-2 scrollbar-hide">
                    ${['Todas', 'Local', 'Nacional'].map(cat => `
                         <button onclick="window.setCategory('${cat}')" 
-                                class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${state.activeCategory === cat ? 'bg-blue-900 text-white' : 'bg-white text-gray-600 border border-gray-200'}">
+                                class="px-5 py-2 rounded-full text-sm font-bold whitespace-nowrap transition-all shadow-sm border ${state.activeCategory === cat ? 'bg-blue-900 text-white border-blue-900' : 'bg-white text-gray-600 border-gray-200'}">
                             ${cat}
                         </button>
                     `).join('')}
@@ -171,58 +234,71 @@
             // Panel Admin
             if (state.isAdmin) {
                 html += `
-                <div class="mb-8 p-4 bg-white rounded-xl shadow-sm border border-blue-100 flex items-center justify-between fade-in">
+                <div class="mb-8 p-5 bg-gradient-to-r from-blue-50 to-white rounded-2xl shadow-sm border border-blue-100 flex items-center justify-between fade-in">
                     <div>
-                        <h2 class="text-lg font-bold text-gray-800">Panel de Control</h2>
-                        <p class="text-sm text-gray-500">Bienvenido, estás en modo edición.</p>
+                        <h2 class="text-xl font-black text-blue-900"><i class="fa-solid fa-screwdriver-wrench mr-2 text-blue-600"></i>Panel de Control</h2>
+                        <p class="text-sm text-gray-500 font-medium">Modo editor activado. Administra el contenido del portal.</p>
                     </div>
-                    <button onclick="window.openEditor()" class="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm">
-                        <i class="fa-solid fa-plus mr-2"></i> Publicar Noticia
+                    <button onclick="window.openEditor()" class="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                        <i class="fa-solid fa-plus mr-2"></i> Publicar
                     </button>
                 </div>`;
             }
+
+            // --- ESPÓNSOR EN PORTADA ---
+            html += `
+            <div class="mb-10 w-full max-w-5xl mx-auto text-center fade-in">
+                <span class="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-3 block flex items-center justify-center">
+                    <span class="w-12 h-[1px] bg-gray-300 mr-3"></span>
+                    Auspicia este espacio
+                    <span class="w-12 h-[1px] bg-gray-300 ml-3"></span>
+                </span>
+                <a href="#" target="_blank" class="block rounded-3xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 group relative bg-black cursor-pointer">
+                    <img src="https://static.wixstatic.com/media/9dbdc2_3a4483a3e19a415285aa91477bf99087~mv2.gif" alt="Auspiciante" class="w-full h-auto max-h-[140px] md:max-h-[180px] object-cover opacity-95 group-hover:opacity-100 group-hover:scale-[1.02] transition-all duration-500" />
+                </a>
+            </div>`;
 
             // Grilla de noticias
             if (filteredNews.length === 0) {
                 html += `
                 <div class="text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm fade-in">
-                    <i class="fa-solid fa-newspaper mx-auto text-6xl text-gray-300 mb-4 block"></i>
-                    <h3 class="text-xl font-bold text-gray-600">No hay noticias todavía</h3>
-                    <p class="text-gray-500 mt-2">${state.isAdmin ? 'Haz clic en "Publicar Noticia" para empezar.' : 'Vuelve más tarde para mantenerte informado.'}</p>
+                    <i class="fa-solid fa-newspaper mx-auto text-6xl text-gray-200 mb-4 block"></i>
+                    <h3 class="text-xl font-bold text-gray-600">Cargando noticias...</h3>
+                    <p class="text-gray-500 mt-2">Por favor aguarda un instante.</p>
                 </div>`;
             } else {
                 html += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 fade-in">`;
                 filteredNews.forEach(article => {
-                    const fallbackImg = "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
+                    const fallbackImg = "https://placehold.co/800x600/e2e8f0/475569?text=Sin+Imagen";
                     const date = new Date(article.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
-                    const icon = article.category === 'Local' ? 'fa-location-dot' : 'fa-globe';
+                    const icon = article.category === 'Local' ? 'fa-location-dot' : 'fa-flag';
                     const catColor = article.category === 'Local' ? 'bg-green-600' : 'bg-blue-600';
 
                     html += `
-                    <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 flex flex-col">
-                        <div class="h-48 w-full bg-gray-200 cursor-pointer relative" onclick="window.viewArticle('${article.id}')">
-                            <img src="${escapeHtml(article.imageUrl)}" alt="Imagen" class="w-full h-full object-cover" onerror="this.src='${fallbackImg}'" />
+                    <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 flex flex-col group">
+                        <div class="h-52 w-full bg-gray-200 cursor-pointer relative overflow-hidden" onclick="window.viewArticle('${article.id}')">
+                            <img src="${article.imageUrl}" alt="Imagen" referrerpolicy="no-referrer" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.onerror=null; this.src='${fallbackImg}';" />
                             <div class="absolute top-3 left-3 flex gap-2">
-                                <span class="px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm flex items-center ${catColor}">
-                                    <i class="fa-solid ${icon} mr-1"></i> ${escapeHtml(article.category)}
+                                <span class="px-3 py-1 rounded-full text-xs font-black text-white shadow-md flex items-center ${catColor}">
+                                    <i class="fa-solid ${icon} mr-1.5"></i> ${escapeHtml(article.category)}
                                 </span>
                             </div>
                         </div>
-                        <div class="p-5 flex-grow flex flex-col">
-                            <div class="text-xs text-gray-400 mb-2 font-medium">${date}</div>
-                            <h3 class="text-xl font-bold text-gray-900 mb-3 leading-tight cursor-pointer hover:text-blue-600 transition-colors" onclick="window.viewArticle('${article.id}')">
+                        <div class="p-6 flex-grow flex flex-col">
+                            <div class="text-xs text-gray-400 mb-3 font-bold tracking-wider uppercase">${date}</div>
+                            <h3 class="text-xl font-black text-gray-900 mb-3 leading-tight cursor-pointer hover:text-blue-600 transition-colors" onclick="window.viewArticle('${article.id}')">
                                 ${escapeHtml(article.title)}
                             </h3>
-                            <p class="text-gray-600 text-sm line-clamp-3 mb-4 flex-grow">
+                            <p class="text-gray-600 text-sm line-clamp-3 mb-4 flex-grow font-medium leading-relaxed">
                                 ${escapeHtml(article.content)}
                             </p>
                             ${state.isAdmin ? `
                             <div class="pt-4 mt-auto border-t border-gray-100 flex justify-end space-x-2">
-                                <button onclick="window.openEditor('${article.id}')" class="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                                    <i class="fa-solid fa-pen"></i>
+                                <button onclick="window.openEditor('${article.id}')" class="px-3 py-1.5 text-sm font-bold text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100">
+                                    <i class="fa-solid fa-pen mr-1"></i> Editar
                                 </button>
-                                <button onclick="window.deleteArticle('${article.id}')" class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                                    <i class="fa-solid fa-trash"></i>
+                                <button onclick="window.deleteArticle('${article.id}')" class="px-3 py-1.5 text-sm font-bold text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100">
+                                    <i class="fa-solid fa-trash mr-1"></i> Borrar
                                 </button>
                             </div>
                             ` : ''}
@@ -237,49 +313,75 @@
         const renderArticle = () => {
             const article = state.selectedArticle;
             if (!article) return '';
-            const fallbackImg = "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80";
+            const fallbackImg = "https://placehold.co/1200x600/e2e8f0/475569?text=Sin+Imagen";
             const date = new Date(article.createdAt).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-            const icon = article.category === 'Local' ? 'fa-location-dot' : 'fa-globe';
+            const icon = article.category === 'Local' ? 'fa-location-dot' : 'fa-flag';
             const catColor = article.category === 'Local' ? 'bg-green-600' : 'bg-blue-600';
 
             return `
-            <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden fade-in">
-                <div class="p-4 border-b border-gray-100 flex items-center justify-between">
-                    <button onclick="window.setView('home')" class="flex items-center text-blue-600 font-medium hover:text-blue-800">
-                        <i class="fa-solid fa-arrow-left mr-1"></i> Volver a portada
+            <div class="max-w-4xl mx-auto bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden fade-in">
+                <div class="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+                    <button onclick="window.setView('home')" class="flex items-center text-blue-600 font-bold hover:text-blue-800 transition-colors">
+                        <i class="fa-solid fa-arrow-left mr-2"></i> Volver a portada
                     </button>
                     ${state.isAdmin ? `
                     <div class="flex space-x-2">
-                        <button onclick="window.openEditor('${article.id}')" class="flex items-center text-sm px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors">
-                            <i class="fa-solid fa-pen mr-1"></i> Editar
+                        <button onclick="window.openEditor('${article.id}')" class="flex items-center text-sm px-4 py-2 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 rounded-xl font-bold transition-all shadow-sm">
+                            <i class="fa-solid fa-pen mr-1.5"></i> Editar
                         </button>
-                        <button onclick="window.deleteArticle('${article.id}')" class="flex items-center text-sm px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-medium transition-colors">
-                            <i class="fa-solid fa-trash mr-1"></i> Borrar
+                        <button onclick="window.deleteArticle('${article.id}')" class="flex items-center text-sm px-4 py-2 bg-red-50 border border-red-100 hover:bg-red-100 text-red-600 rounded-xl font-bold transition-all shadow-sm">
+                            <i class="fa-solid fa-trash mr-1.5"></i> Borrar
                         </button>
                     </div>` : ''}
                 </div>
                 
-                <img src="${escapeHtml(article.imageUrl)}" alt="Imagen de la noticia" class="w-full h-[400px] object-cover" onerror="this.src='${fallbackImg}'" />
+                <div class="relative w-full h-[450px]">
+                    <img src="${article.imageUrl}" alt="Imagen de la noticia" referrerpolicy="no-referrer" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='${fallbackImg}';" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    <div class="absolute bottom-6 left-6 right-6 md:left-10 md:right-10 flex items-center space-x-4">
+                        <span class="px-4 py-1.5 rounded-full text-xs font-black text-white shadow-lg flex items-center w-fit ${catColor}">
+                            <i class="fa-solid ${icon} mr-2"></i> ${escapeHtml(article.category)}
+                        </span>
+                    </div>
+                </div>
                 
                 <div class="p-8 md:p-12">
-                    <div class="flex items-center space-x-4 mb-6">
-                        <span class="px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm flex items-center w-fit ${catColor}">
-                            <i class="fa-solid ${icon} mr-1"></i> ${escapeHtml(article.category)}
-                        </span>
-                        <span class="text-sm text-gray-500 font-medium">${date}</span>
+                    <div class="flex items-center space-x-4 mb-4">
+                        <span class="text-sm text-gray-500 font-bold tracking-wider uppercase">${date}</span>
                     </div>
                     
-                    <h1 class="text-3xl md:text-5xl font-black text-gray-900 mb-8 leading-tight">
+                    <h1 class="text-4xl md:text-5xl font-black text-gray-900 mb-8 leading-tight">
                         ${escapeHtml(article.title)}
                     </h1>
                     
-                    <div class="prose prose-lg max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed text-lg">
+                    <div class="prose prose-lg max-w-none text-gray-700 whitespace-pre-wrap leading-relaxed text-xl font-medium">
                         ${escapeHtml(article.content)}
                     </div>
                     
-                    <div class="mt-12 pt-6 border-t border-gray-100 flex items-center text-gray-500 text-sm">
-                        <p>Publicado por Redacción SaltaInforma</p>
+                    <div class="mt-12 pt-8 border-t border-gray-100 flex items-center justify-between">
+                        <div class="flex items-center text-gray-600 font-bold">
+                            <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3 text-blue-600">
+                                <i class="fa-solid fa-user-pen"></i>
+                            </div>
+                            Por ${escapeHtml(article.author || 'Redacción SaltaInforma')}
+                        </div>
+                        <button class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-blue-100 hover:text-blue-600 transition-colors" onclick="navigator.clipboard.writeText(window.location.href); alert('Enlace copiado al portapapeles')">
+                            <i class="fa-solid fa-share-nodes"></i>
+                        </button>
                     </div>
+                    
+                    <!-- --- ESPÓNSOR AL FINAL DEL ARTÍCULO --- -->
+                    <div class="mt-12 pt-8 border-t border-gray-100 w-full text-center fade-in">
+                        <span class="text-[10px] text-gray-400 font-black uppercase tracking-[0.2em] mb-4 block flex items-center justify-center">
+                            <span class="w-8 h-[1px] bg-gray-200 mr-3"></span>
+                            Auspiciante
+                            <span class="w-8 h-[1px] bg-gray-200 ml-3"></span>
+                        </span>
+                        <a href="#" target="_blank" class="block rounded-3xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 group bg-black cursor-pointer max-w-3xl mx-auto">
+                            <img src="https://static.wixstatic.com/media/9dbdc2_3a4483a3e19a415285aa91477bf99087~mv2.gif" alt="Auspiciante" class="w-full h-auto max-h-[120px] md:max-h-[150px] object-cover opacity-90 group-hover:opacity-100 transition-all duration-500" />
+                        </a>
+                    </div>
+
                 </div>
             </div>`;
         };
@@ -289,56 +391,65 @@
             const isEdit = !!f.id;
             
             return `
-            <div class="max-w-3xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-8 fade-in">
-                <div class="flex items-center justify-between mb-8">
-                    <h2 class="text-2xl font-bold text-gray-900 flex items-center">
-                        <i class="fa-solid ${isEdit ? 'fa-pen' : 'fa-plus'} mr-2 text-blue-600"></i>
-                        ${isEdit ? 'Editar Noticia' : 'Nueva Noticia'}
+            <div class="max-w-3xl mx-auto bg-white rounded-3xl shadow-lg border border-gray-100 p-8 md:p-10 fade-in">
+                <div class="flex items-center justify-between mb-8 pb-6 border-b border-gray-100">
+                    <h2 class="text-2xl font-black text-gray-900 flex items-center">
+                        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center mr-3 text-blue-600">
+                            <i class="fa-solid ${isEdit ? 'fa-pen' : 'fa-plus'}"></i>
+                        </div>
+                        ${isEdit ? 'Editar Noticia' : 'Publicar Nueva Noticia'}
                     </h2>
-                    <button onclick="window.setView('home')" class="text-gray-400 hover:text-gray-600 font-medium">Cancelar</button>
+                    <button onclick="window.setView('home')" class="text-gray-400 hover:text-gray-800 font-bold transition-colors">
+                        <i class="fa-solid fa-xmark text-2xl"></i>
+                    </button>
                 </div>
                 
                 <form id="editor-form" class="space-y-6" onsubmit="window.submitArticle(event)">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Título de la noticia</label>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Titular Principal</label>
                         <input type="text" id="form-title" required value="${escapeHtml(f.title)}"
-                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all font-medium text-lg"
-                            placeholder="Ej: Nuevo festival folclórico..." />
+                            class="w-full px-5 py-4 rounded-xl border border-gray-200 focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all font-bold text-xl text-gray-800 bg-gray-50 focus:bg-white"
+                            placeholder="Escribe un título impactante..." />
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Categoría</label>
-                            <select id="form-category" class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
-                                <option value="Local" ${f.category === 'Local' ? 'selected' : ''}>Local (Salta)</option>
-                                <option value="Nacional" ${f.category === 'Nacional' ? 'selected' : ''}>Nacional (Argentina)</option>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Categoría / Sección</label>
+                            <select id="form-category" class="w-full px-5 py-3.5 rounded-xl border border-gray-200 focus:ring-4 focus:ring-blue-100 outline-none bg-gray-50 focus:bg-white font-medium text-gray-700 transition-all cursor-pointer">
+                                <option value="Local" ${f.category === 'Local' ? 'selected' : ''}>📍 Local (Provincia de Salta)</option>
+                                <option value="Nacional" ${f.category === 'Nacional' ? 'selected' : ''}>🇦🇷 Nacional (Argentina)</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                                <i class="fa-solid fa-image mr-1"></i> URL de la Imagen
-                            </label>
-                            <input type="url" id="form-imageUrl" value="${escapeHtml(f.imageUrl)}" onchange="window.updateImagePreview(this.value)"
-                                class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
-                                placeholder="https://ejemplo.com/imagen.jpg" />
-                            <p class="text-xs text-gray-500 mt-1">Copia y pega la dirección web de una foto.</p>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">Enlace de Imagen (URL)</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <i class="fa-solid fa-link text-gray-400"></i>
+                                </div>
+                                <input type="url" id="form-imageUrl" value="${escapeHtml(f.imageUrl)}" onchange="window.updateImagePreview(this.value)"
+                                    class="w-full pl-10 pr-5 py-3.5 rounded-xl border border-gray-200 focus:ring-4 focus:ring-blue-100 outline-none bg-gray-50 focus:bg-white transition-all font-medium"
+                                    placeholder="https://ejemplo.com/foto.jpg" />
+                            </div>
                         </div>
                     </div>
 
-                    <div id="image-preview-container" class="${f.imageUrl ? 'block' : 'hidden'} mt-2 rounded-lg overflow-hidden border border-gray-200 h-40 w-full relative bg-gray-50">
-                        <img id="image-preview" src="${escapeHtml(f.imageUrl)}" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1585829365295-ab7cd400c167?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'"/>
+                    <div id="image-preview-container" class="${f.imageUrl ? 'block' : 'hidden'} mt-4 rounded-xl overflow-hidden border-2 border-dashed border-gray-300 h-48 w-full relative bg-gray-50">
+                        <img id="image-preview" src="${f.imageUrl}" referrerpolicy="no-referrer" class="w-full h-full object-cover" onerror="this.onerror=null; this.src='https://placehold.co/800x600/e2e8f0/475569?text=Vista+Previa';"/>
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Contenido de la noticia</label>
-                        <textarea id="form-content" required rows="12"
-                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                            placeholder="Escribe el desarrollo de la noticia aquí...">${escapeHtml(f.content)}</textarea>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Desarrollo de la Noticia</label>
+                        <textarea id="form-content" required rows="10"
+                            class="w-full px-5 py-4 rounded-xl border border-gray-200 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-lg font-medium text-gray-700 bg-gray-50 focus:bg-white leading-relaxed"
+                            placeholder="Escribe el cuerpo de la noticia aquí...">${escapeHtml(f.content)}</textarea>
                     </div>
 
-                    <div class="pt-4 border-t border-gray-100 flex justify-end">
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold shadow-md transition-all">
-                            ${isEdit ? 'Guardar Cambios' : 'Publicar Noticia'}
+                    <div class="pt-6 border-t border-gray-100 flex justify-end">
+                        <button type="button" onclick="window.setView('home')" class="mr-4 px-6 py-3 font-bold text-gray-500 hover:text-gray-800 transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3.5 rounded-xl font-black shadow-lg shadow-blue-600/30 transition-all transform hover:-translate-y-1 flex items-center">
+                            <i class="fa-solid fa-paper-plane mr-2"></i> ${isEdit ? 'Guardar Cambios' : 'Publicar Ahora'}
                         </button>
                     </div>
                 </form>
@@ -376,10 +487,9 @@
 
         // --- Auth Mock ---
         window.showLogin = () => {
-            const pass = prompt("Acceso Editorial (Contraseña: salta2026)");
+            const pass = prompt("Acceso Editorial (Contraseña para probar: salta2026)");
             if (pass === 'salta2026') {
                 state.isAdmin = true;
-                alert("¡Bienvenido al panel de edición!");
                 renderApp();
             } else if (pass !== null) {
                 alert("Contraseña incorrecta");
@@ -403,13 +513,14 @@
 
             const articleData = {
                 title, category, content,
-                imageUrl: imageUrl || 'https://images.unsplash.com/photo-1585829365295-ab7cd400c167?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80',
+                imageUrl: imageUrl || 'https://placehold.co/800x600/e2e8f0/475569?text=Noticia',
                 createdAt: state.formData.id ? state.formData.createdAt : Date.now(),
                 author: 'Redacción SaltaInforma'
             };
 
             const btn = document.querySelector('button[type="submit"]');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+            const btnOriginalHtml = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin mr-2"></i> Procesando...';
             btn.disabled = true;
 
             try {
@@ -424,14 +535,14 @@
             } catch (error) {
                 console.error("Error al guardar:", error);
                 alert("Hubo un error al guardar la noticia.");
-                btn.innerHTML = 'Intentar de nuevo';
+                btn.innerHTML = btnOriginalHtml;
                 btn.disabled = false;
             }
         };
 
         window.deleteArticle = async (id) => {
             if (!state.db) return;
-            if (confirm("¿Estás seguro de que deseas eliminar esta noticia?")) {
+            if (confirm("¿Estás seguro de que deseas eliminar esta noticia permanentemente?")) {
                 try {
                     const docRef = doc(state.db, 'artifacts', state.appId, 'public', 'data', 'salta_news_articles', id);
                     await deleteDoc(docRef);
@@ -442,13 +553,15 @@
             }
         };
 
-        // --- Inicialización de Firebase ---
+        // --- Inicialización y "Seeding" de Firebase ---
+        let isSeeding = false; // Flag para evitar cargar las noticias varias veces
+
         if (!configFinal) {
             document.getElementById('app-content').innerHTML = `
-                <div class="text-center py-20 fade-in">
-                    <i class="fa-solid fa-triangle-exclamation text-6xl text-yellow-500 mb-4 block"></i>
-                    <h2 class="text-2xl font-bold text-gray-800">Falta la Base de Datos</h2>
-                    <p class="text-gray-600 mt-4 max-w-md mx-auto">Para que la página funcione en GitHub Pages, necesitas configurar Firebase. Abre el archivo <code>index.html</code> y busca la sección "CONFIGURACIÓN PARA GITHUB PAGES" en la línea 40.</p>
+                <div class="text-center py-20 fade-in bg-white rounded-3xl shadow-sm border border-gray-100 max-w-2xl mx-auto mt-10">
+                    <i class="fa-solid fa-triangle-exclamation text-7xl text-yellow-500 mb-6 block"></i>
+                    <h2 class="text-3xl font-black text-gray-900">Configuración Pendiente</h2>
+                    <p class="text-gray-600 mt-4 text-lg px-8">Para que la página funcione, necesitas configurar tus credenciales de Firebase en el código fuente.</p>
                 </div>
             `;
         } else {
@@ -456,7 +569,6 @@
             const auth = getAuth(app);
             state.db = getFirestore(app);
 
-            // Autenticación anónima para poder leer y escribir (Reglas de Firebase permitiéndolo)
             const initAuth = async () => {
                 try {
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -469,15 +581,29 @@
 
             initAuth();
 
-            // Escuchar cambios de sesión e inicializar la carga de datos
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     const newsRef = collection(state.db, 'artifacts', state.appId, 'public', 'data', 'salta_news_articles');
                     onSnapshot(newsRef, (snapshot) => {
                         const newsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        
+                        // Lógica de "Seeding": Si la base de datos está vacía, cargamos las iniciales
+                        if (newsData.length === 0 && !isSeeding) {
+                            isSeeding = true;
+                            console.log("Base de datos vacía. Cargando noticias iniciales de Salta...");
+                            
+                            Promise.all(initialNews.map(n => addDoc(newsRef, n)))
+                                .then(() => console.log("Noticias cargadas con éxito."))
+                                .catch(e => console.error("Error en la precarga:", e))
+                                .finally(() => { isSeeding = false; });
+                        }
+
                         newsData.sort((a, b) => b.createdAt - a.createdAt);
                         state.news = newsData;
-                        renderApp(); // Renderiza la app una vez obtenidos los datos
+                        
+                        // FIX: Removemos la restricción. Ahora la pantalla se actualizará
+                        // en tiempo real a medida que cada noticia ingrese a la base de datos.
+                        renderApp(); 
                     }, (error) => {
                         console.error("Error al obtener noticias:", error);
                     });
