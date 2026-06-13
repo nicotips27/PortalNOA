@@ -557,13 +557,9 @@
         let isSeeding = false; // Flag para evitar cargar las noticias varias veces
 
         if (!configFinal) {
-            document.getElementById('app-content').innerHTML = `
-                <div class="text-center py-20 fade-in bg-white rounded-3xl shadow-sm border border-gray-100 max-w-2xl mx-auto mt-10">
-                    <i class="fa-solid fa-triangle-exclamation text-7xl text-yellow-500 mb-6 block"></i>
-                    <h2 class="text-3xl font-black text-gray-900">Configuración Pendiente</h2>
-                    <p class="text-gray-600 mt-4 text-lg px-8">Para que la página funcione, necesitas configurar tus credenciales de Firebase en el código fuente.</p>
-                </div>
-            `;
+            // Sin base de datos configurada: mostramos las noticias de prueba localmente para que no haya errores
+            state.news = [...initialNews].sort((a, b) => b.createdAt - a.createdAt);
+            renderApp();
         } else {
             const app = initializeApp(configFinal);
             const auth = getAuth(app);
